@@ -1,7 +1,9 @@
 function getEventsForDate(date) {
 
-  var ical = UrlFetchApp.fetch('https://metalab.at/calendar/export/ical/').getContentText()
+  var ical = UrlFetchApp.fetch('https://metalab.at/calendar/export/ical/', {muteHttpExceptions: true}).getContentText();
   var vevents = ical.match(/(SUMMARY:[\s\S]*?)(?=END:VEVENT)/g);
+  
+  if(!(vevents instanceof Array)) return [];
   
   var events = vevents.reduce(function(acc, vevent) {
     var event = vevent.match(/(\b[A-Z]+\b):(.+(?:\n\s.*)?)/g).reduce(function(cca, keyValue) {
@@ -26,7 +28,7 @@ function getEventsForDate(date) {
      
     }, {});
     
-    if(event.dtstart.toDateString() == date.toDateString()) {
+    if(event instanceof Date && event.dtstart.setHours(0,0,0,0) == date.setHours(0,0,0,0)) {
       acc.push(event);
     }
     
@@ -72,7 +74,7 @@ function tweetEvents(e) {
     if(text.length > maxLength) text = text.substr(0, (maxLength - 2)) + "… ";
     text += events[i].url;
     Logger.log(text);
-    tweet(text);
+    twitter('post', 'statuses/update.json', { status: text });
   }
 }
 

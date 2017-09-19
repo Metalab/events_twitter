@@ -1,8 +1,8 @@
 // https://dev.twitter.com/oauth/overview/creating-signatures
-function tweet(message) {
+function twitter(method, endpoint, payload) {
   
-  var method = "POST";
-  var baseUrl = "https://api.twitter.com/1.1/statuses/update.json";
+  var method = method || 'POST';
+  var url = 'https://api.twitter.com/1.1/' + (endpoint || 'statuses/update.json');
   var props = PropertiesService.getScriptProperties();
   
   var oauthParameters = {
@@ -15,9 +15,9 @@ function tweet(message) {
   
   oauthParameters.oauth_nonce = oauthParameters.oauth_timestamp + Math.floor( Math.random() * 100000000);
   
-  var payload = {
+  /*var payload = {
     status: message
-  };
+  };*/
   
   var queryKeys = Object.keys(oauthParameters).concat(Object.keys(payload)).sort();
   
@@ -28,7 +28,7 @@ function tweet(message) {
     else if(payload.hasOwnProperty(key))
       acc += encode(key+"="+encode(payload[key]));
     return acc;
-  }, method.toUpperCase()+'&'+encode(baseUrl)+'&');
+  }, method.toUpperCase()+'&'+encode(url)+'&');
   
   oauthParameters.oauth_signature = Utilities.base64Encode(
     Utilities.computeHmacSignature(
@@ -46,14 +46,20 @@ function tweet(message) {
         return acc;
       },[]).join(', ')
     },
-    payload: Object.keys(payload).reduce(function(acc, key){
-      acc.push(key+'='+encode(payload[key]));
-      return acc;
-    },[]).join('&'),
     muteHttpExceptions: true
   }
-  
-  var response = UrlFetchApp.fetch(baseUrl, options);
+  var query = Object.keys(payload).reduce(function(acc, key){
+      acc.push(key+'='+encode(payload[key]));
+      return acc;
+    },[]).join('&');
+  if(method == 'GET')
+    url += '?' + query;
+  else options.payload = query;
+
+  Logger.log(url);
+  Logger.log(options);
+  Logger.log(baseString);
+  var response = UrlFetchApp.fetch(url, options);
   var responseHeader = response.getHeaders();
   var responseText = response.getContentText();
   Logger.log(responseText);
@@ -66,4 +72,10 @@ function encode(string){
     .replace('(','%28')
     .replace(')','%29')
     .replace("'",'%27');
+}
+
+function replies() {
+   
+  twitter('GET', 'search/tweets.json', {to: 'metalab_events'});
+  
 }
