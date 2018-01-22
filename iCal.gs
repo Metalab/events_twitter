@@ -3,7 +3,7 @@ function getEventsForDate(date) {
   var ical = UrlFetchApp.fetch('https://metalab.at/calendar/export/ical/', {muteHttpExceptions: true}).getContentText();
   var vevents = ical.match(/(SUMMARY:[\s\S]*?)(?=END:VEVENT)/g);
   
-  if(!(vevents instanceof Array)) return [];
+  if(!(vevents instanceof Array) || !(date instanceof Date)) return [];
   
   var events = vevents.reduce(function(acc, vevent) {
     var event = vevent.match(/(\b[A-Z]+\b):(.+(?:\n\s.*)?)/g).reduce(function(cca, keyValue) {
@@ -14,21 +14,14 @@ function getEventsForDate(date) {
         .replace("\n ", '');
       
       if(/^DT\w+/.test(key) && /\d{8}T\d{6}/.test(value)) value = icalDate(value);
-      try {
-        if(key == "URL" && value) value = decodeURIComponent(value);
-      }
-      catch(e) { 
-        Logger.log(e);
-        Logger.log(key);
-        Logger.log("<"+value+">");
-      }
+      if(key == "URL" && value) value = decodeURIComponent(value).replace(/\s/g, '_');
       
       cca[key.toLowerCase()] = value;
       return cca;
      
     }, {});
     
-    if(event instanceof Date && event.dtstart.setHours(0,0,0,0) == date.setHours(0,0,0,0)) {
+    if(event.dtstart.toDateString() == date.toDateString()) {
       acc.push(event);
     }
     
