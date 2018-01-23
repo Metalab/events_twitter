@@ -6,12 +6,12 @@ function getEventsForDate(date) {
   if(!(vevents instanceof Array) || !(date instanceof Date)) return [];
   
   var events = vevents.reduce(function(acc, vevent) {
-    var event = vevent.match(/(\b[A-Z]+\b):(.+(?:\n\s.*)?)/g).reduce(function(cca, keyValue) {
+    var event = vevent.match(/(\b[A-Z]+\b):(.+(?:\r\n\s.*)?)/g).reduce(function(cca, keyValue) {
     
       var key = keyValue.split(':')[0];
       var value = keyValue.split(':').slice(1).join(':')
         .replace(/\\([,;:])/g, '$1')
-        .replace("\n ", '');
+        .replace(/(?:\r?\n|\r)\s/, '');
       
       if(/^DT\w+/.test(key) && /\d{8}T\d{6}/.test(value)) value = icalDate(value);
       if(key == "URL" && value) value = decodeURIComponent(value).replace(/\s/g, '_');
