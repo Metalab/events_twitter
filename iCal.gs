@@ -1,5 +1,4 @@
 function getEventsForDate(date) {
-
   var ical = UrlFetchApp.fetch('https://metalab.at/calendar/export/ical/', {muteHttpExceptions: true}).getContentText();
   var vevents = ical.match(/(SUMMARY:[\s\S]*?)(?=END:VEVENT)/g);
   
@@ -7,14 +6,27 @@ function getEventsForDate(date) {
   
   var events = vevents.reduce(function(acc, vevent) {
     var event = vevent.match(/(\b[A-Z]+\b):(.+(?:\r\n\s.*)?)/g).reduce(function(cca, keyValue) {
-    
+      Logger.log(arguments);
       var key = keyValue.split(':')[0];
       var value = keyValue.split(':').slice(1).join(':')
         .replace(/\\([,;:])/g, '$1')
         .replace(/(?:\r?\n|\r)\s/, '');
       
-      if(/^DT\w+/.test(key) && /\d{8}T\d{6}/.test(value)) value = icalDate(value);
-      if(key == "URL" && value) value = decodeURIComponent(value).replace(/\s/g, '_');
+      if(/^DT\w+/.test(key) && /\d{8}T\d{6}/.test(value)) {
+        value = new Date(value.replace(/(\d{2})(\d{2})T(\d{2})(\d{2})/, '-$1-$2T$3:$4:'));
+      }
+      else if(key == "URL" && value) {
+        try{
+          value = decodeURIComponent(value).replace(/\s/g, '_');
+          if(value.split('://').length > 2) {
+            var protoIndex = value.lastIndexOf('://');
+            value = value.slice(0, protoIndex).split('/').slice(-1) + value.slice(protoIndex);
+          }
+        }
+        catch(e) {
+          console.log('%s: %s [%s]', e.name, e.message, value);
+        }
+      }
       
       cca[key.toLowerCase()] = value;
       return cca;
@@ -33,19 +45,8 @@ function getEventsForDate(date) {
   events.forEach(function(event) {
     Logger.log(event.summary + ' - ' + event.dtstart.toDateString());
   });
+  
   return events;
-
-}
-
-function icalDate(icalStr)  {            
-    var strYear = icalStr.substr(0,4);
-    var strMonth = parseInt(icalStr.substr(4,2),10)-1;
-    var strDay = icalStr.substr(6,2);
-    var strHour = icalStr.substr(9,2);
-    var strMin = icalStr.substr(11,2);
-    var strSec = icalStr.substr(13,2);
-
-    return new Date(strYear,strMonth, strDay, strHour, strMin, strSec)
 }
 
 function tweetEvents(e) {
@@ -53,7 +54,7 @@ function tweetEvents(e) {
   var date = e instanceof Date ? e : new Date(),
       months = ["Jänner", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"],
       days = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"],
-      maxLength = 140-23, // Max tweet length minus URL length
+      maxLength = 140, // Max tweet length minus URL length (23)
       events = getEventsForDate(date);
   
   for(i in events)
@@ -62,7 +63,7 @@ function tweetEvents(e) {
     var text = prefix + "@MetalabVie: " +
       events[i].summary + ", " + 
       Utilities.formatDate(events[i].dtstart, Session.getScriptTimeZone(), "HH:mm") + 
-      (events[i].dtend ? " - " + Utilities.formatDate(events[i].dtend, Session.getScriptTimeZone(), "HH:mm") : "") + ". " +
+      (events[i].dtend ? " — " + Utilities.formatDate(events[i].dtend, Session.getScriptTimeZone(), "HH:mm") : "") + ". " +
       (events[i].description ? events[i].description + " " : "");
     if(text.length > maxLength) text = text.substr(0, (maxLength - 2)) + "… ";
     text += events[i].url;
