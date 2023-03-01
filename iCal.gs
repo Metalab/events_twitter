@@ -1,3 +1,16 @@
+function getICal() {
+  var cache = CacheService.getScriptCache();
+  var cached = cache.get('metalab-calendar');
+  if (cached != null) {
+    Logger.log('cached')
+    return cached;
+  }
+  var result = UrlFetchApp.fetch('https://metalab.at/calendar/export/ical/', {muteHttpExceptions: true});
+  var contents = result.getContentText();
+  cache.put('metalab-calendar', contents, 60 * 60 * 2); // cache for 25 minutes
+  return contents;
+}
+
 function getEventsForDate(date) {
   var ical = UrlFetchApp.fetch('https://metalab.at/calendar/export/ical/', {muteHttpExceptions: true}).getContentText();
   var vevents = ical.match(/(SUMMARY:[\s\S]*?)(?=END:VEVENT)/g);
@@ -6,7 +19,7 @@ function getEventsForDate(date) {
   
   var events = vevents.reduce(function(acc, vevent) {
     var event = vevent.match(/(\b[A-Z]+\b):(.+(?:\r\n\s.*)?)/g).reduce(function(cca, keyValue) {
-      Logger.log(arguments);
+      //Logger.log(arguments);
       var key = keyValue.split(':')[0];
       var value = keyValue.split(':').slice(1).join(':')
         .replace(/\\([,;:])/g, '$1')
@@ -33,7 +46,8 @@ function getEventsForDate(date) {
      
     }, {});
     
-    if(event.dtstart.toDateString() == date.toDateString()) {
+    // Filter out private events
+    if(event.dtstart.toDateString() == date.toDateString() && event['class'] == 'PUBLIC') {
       acc.push(event);
     }
     
@@ -54,7 +68,7 @@ function tweetEvents(e) {
   var date = e instanceof Date ? e : new Date(),
       months = ["Jänner", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"],
       days = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"],
-      maxLength = 140, // Max tweet length minus URL length (23)
+      maxLength = 280,
       events = getEventsForDate(date);
   
   for(i in events)
@@ -63,7 +77,7 @@ function tweetEvents(e) {
     var text = prefix + "@MetalabVie: " +
       events[i].summary + ", " + 
       Utilities.formatDate(events[i].dtstart, Session.getScriptTimeZone(), "HH:mm") + 
-      (events[i].dtend ? " — " + Utilities.formatDate(events[i].dtend, Session.getScriptTimeZone(), "HH:mm") : "") + ". " +
+      (events[i].dtend ? " – " + Utilities.formatDate(events[i].dtend, Session.getScriptTimeZone(), "HH:mm") : "") + ". " +
       (events[i].description ? events[i].description + " " : "");
     if(text.length > maxLength) text = text.substr(0, (maxLength - 2)) + "… ";
     text += events[i].url;
@@ -82,4 +96,9 @@ function eventsNextWeek() {
   var date = new Date();
   date.setDate(date.getDate()+7)
   tweetEvents(date);
+}
+
+function test() {
+  var date = new Date();
+  getEventsForDate(date);
 }
