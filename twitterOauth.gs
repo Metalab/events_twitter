@@ -34,7 +34,8 @@ function twitter(method, endpoint, payload) {
   );
   
   var options = {
-    method: method,
+    method,
+    contentType: 'application/json',
     headers: {
       authorization: 'OAuth ' + queryString(oauthParameters, ', ')
     },
@@ -54,10 +55,14 @@ function twitter(method, endpoint, payload) {
   
   var response = UrlFetchApp.fetch(url, options);
   var responseHeaders = response.getHeaders();
-  var responseText = response.getContentText();
+  var responseText = response.getContentText() //JSON.parse(response.getContentText());
 
-  Logger.log('Response headers:' + JSON.stringify(responseHeaders));
-  Logger.log('Response text:' + responseText);
+  Logger.log('Response headers: %j', responseHeaders);
+  Logger.log('Response text: %j', responseText);
+
+  if (responseText.errors) {
+    throw new Error(responseText.errors[0]?.message);
+  }
 }
 
 function queryString(object, separator) {

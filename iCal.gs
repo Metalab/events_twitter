@@ -82,7 +82,8 @@ function tweetEvents(e) {
     if(text.length > maxLength) text = text.substr(0, (maxLength - 2)) + "… ";
     text += events[i].url;
     Logger.log(text);
-    twitter('post', 'statuses/update.json', { status: text });
+    // twitter('post', 'statuses/update.json', { status: text });
+    tweet(text)
   }
 }
 
