@@ -33,44 +33,38 @@ function tweet(text) {
  */
 function reset() {
   getService_().reset();
-  PropertiesService.getUserProperties().deleteProperty('code_challenge');
-  PropertiesService.getUserProperties().deleteProperty('code_verifier');
 }
 
 /**
  * Configures the service.
  */
 function getService_() {
-  pkceChallengeVerifier();
   var scriptProps = PropertiesService.getScriptProperties();
   var userProps = PropertiesService.getUserProperties();
+  var clientId = scriptProps.getProperty('CLIENT_ID');
+  var clientSecret = scriptProps.getProperty('CLIENT_SECRET');
   return OAuth2.createService('Twitter')
   // Set the endpoint URLs.
       .setAuthorizationBaseUrl('https://twitter.com/i/oauth2/authorize')
-      .setTokenUrl(
-          'https://api.twitter.com/2/oauth2/token?code_verifier=' + userProps.getProperty('code_verifier'))
+      .setTokenUrl('https://api.twitter.com/2/oauth2/token')
 
   // Set the client ID and secret.
-      .setClientId(scriptProps.getProperty('CLIENT_ID'))
-      .setClientSecret(scriptProps.getProperty('CLIENT_SECRET'))
+      .setClientId(clientId)
+      .setClientSecret(clientSecret)
 
   // Set the name of the callback function that should be invoked to
   // complete the OAuth flow.
       .setCallbackFunction('authCallback')
+      .generateCodeVerifier()
 
   // Set the property store where authorized tokens should be persisted.
       .setPropertyStore(userProps)
 
   // Set the scopes to request (space-separated for Twitter services).
-      .setScope(['users.read', 'tweet.read', 'tweet.write'].join(' '))
-
-  // Add parameters in the authorization url
-      .setParam('response_type', 'code')
-      .setParam('code_challenge_method', 'S256')
-      .setParam('code_challenge', userProps.getProperty('code_challenge'))
+      .setScope(['offline.access', 'users.read', 'tweet.read', 'tweet.write'].join(' '))
 
       .setTokenHeaders({
-        'Authorization': 'Basic ' + Utilities.base64Encode(CLIENT_ID + ':' + CLIENT_SECRET),
+        'Authorization': 'Basic ' + Utilities.base64Encode(`${clientId}:${clientSecret}`),
         'Content-Type': 'application/x-www-form-urlencoded'
       });
 }
@@ -93,28 +87,4 @@ function authCallback(request) {
  */
 function logRedirectUri() {
   Logger.log(OAuth2.getRedirectUri());
-}
-
-/**
- * Generates code_verifier & code_challenge for PKCE
- */
-function pkceChallengeVerifier() {
-  var userProps = PropertiesService.getUserProperties();
-  if (!userProps.getProperty('code_verifier')) {
-    var verifier = '';
-    var possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
-
-    for (var i = 0; i < 128; i++) {
-      verifier += possible.charAt(Math.floor(Math.random() * possible.length));
-    }
-
-    var sha256Hash = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, verifier);
-
-    var challenge = Utilities.base64Encode(sha256Hash)
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_')
-        .replace(/=+$/, '');
-    userProps.setProperty('code_verifier', verifier);
-    userProps.setProperty('code_challenge', challenge);
-  }
 }
